@@ -1,0 +1,55 @@
+"""# Import the functions and packages that are used
+from dwave.system import EmbeddingComposite, DWaveSampler
+
+# Define the problem as two Python dictionaries: 
+#   h for linear terms, J for quadratic terms
+h = {} 
+J = {('A','K'): -0.5, 
+    ('B','C'): -0.5, 
+    ('A','C'): 0.5} 
+
+# Define the sampler that will be used to run the problem
+sampler = EmbeddingComposite(DWaveSampler())
+
+# Run the problem on the sampler and print the results
+sampleset = sampler.sample_ising(h, J, num_reads = 10)
+print(sampleset)
+"""
+
+
+from dwave.system.samplers import DWaveSampler
+from dwave.system.composites import EmbeddingComposite
+import re
+
+from maze import get_maze_bqm, Maze
+
+# Create maze
+n_rows = 3
+n_cols = 4
+start = '0,0n'              # maze entrance location
+end = '2,4w'                # maze exit location
+walls = ['1,1n', '2,2w']    # maze interior wall locations
+
+# Construct BQM
+m = Maze(n_rows, n_cols, start, end, walls)
+bqm = m.get_bqm()
+
+# Submit BQM to a D-Wave sampler
+sampler = EmbeddingComposite(DWaveSampler())
+result = sampler.sample(bqm, num_reads=1000, chain_strength=2)
+
+# Interpret result
+# Note: when grabbing the path, we are only grabbing path segments that have
+#   been "selected" (i.e. indicated with a 1).
+# Note2: in order construct the BQM such that the maze solution corresponds to
+#   the ground energy, auxiliary variables
+#   may have been included in the BQM. These auxiliary variables are no longer
+#   useful once we have our result. Hence, we can just ignore them by filtering
+#   them out with regex (i.e. re.match(r"^aux(\d+)$", k)])
+path = [k for k, v in result.first.sample.items() if v==1
+            and not re.match(r"^aux(\d+)$", k)]
+
+# Visualize maze path
+m.visualize(path)
+print("\n")
+print(result.first.sample)
